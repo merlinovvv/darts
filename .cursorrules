@@ -1,0 +1,67 @@
+# Darts App — FSD Architecture Rules
+
+## Layer Map (import direction: top → bottom only)
+
+```
+app/          → providers, router, global styles, entry point
+pages/        → home, game-setup, game (route-level composition)
+widgets/      → dartboard, scoreboard, game-header, game-statistics
+features/     → select-game, manage-players, record-throw, end-turn, resume-game
+entities/     → player, dart-sector, game, game-rules
+shared/       → ui (shadcn), lib (cn, id), config (routes)
+```
+
+## Import Rules
+
+1. **Allowed**: import from same layer's slice via public API (`index.ts`) OR from layers below.
+2. **Forbidden**: importing from layers above; cross-slice imports within the same layer (except `shared`).
+3. **Public API**: every slice exports only through `index.ts` at slice root.
+4. **Segment naming**: use `ui/`, `model/`, `lib/`, `api/` inside slices.
+
+## Slice Responsibilities
+
+| Slice | Path | Purpose |
+|-------|------|---------|
+| app | `src/app/` | Bootstrap, router, global CSS |
+| home | `src/pages/home/` | Game selection page |
+| game-setup | `src/pages/game-setup/` | Player list and turn order |
+| game | `src/pages/game/` | Active game screen |
+| dartboard | `src/widgets/dartboard/` | SVG board + click handling |
+| scoreboard | `src/widgets/scoreboard/` | Score table, turn indicator, remove player |
+| game-header | `src/widgets/game-header/` | Game title, new game action |
+| game-statistics | `src/widgets/game-statistics/` | Post-game throw stats per player |
+| select-game | `src/features/select-game/` | Game type picker UI |
+| manage-players | `src/features/manage-players/` | Add/remove/reorder players |
+| record-throw | `src/features/record-throw/` | Throw recording hook |
+| end-turn | `src/features/end-turn/` | Early turn end + throw summary |
+| resume-game | `src/features/resume-game/` | Resume dialog + result dialog |
+| player | `src/entities/player/` | Player model |
+| dart-sector | `src/entities/dart-sector/` | Sector types, scoring helpers |
+| game | `src/entities/game/` | Session types, Zustand store |
+| game-rules | `src/entities/game-rules/` | Rule engines + registry |
+| ui | `src/shared/ui/` | shadcn components |
+| lib | `src/shared/lib/` | Utilities |
+| config | `src/shared/config/` | Routes |
+
+## Adding a New Game
+
+1. Create engine in `src/entities/game-rules/lib/<game>-engine.ts`
+2. Register in `src/entities/game-rules/model/registry.ts` (`GAME_DEFINITIONS`)
+3. Extend `GameConfig` / `PlayerState` in `src/entities/game/model/types.ts` if needed
+4. Update scoreboard rendering if the UI differs
+5. **Update this file** with the new slice/engine entry
+
+## Tech Stack
+
+- Vite + React + TypeScript
+- shadcn/ui (neutral, black & white theme)
+- Zustand + persist (localStorage key: `darts-game-storage`)
+- react-router-dom
+
+## UI Language
+
+Russian (ru)
+
+## Update Policy
+
+When adding or removing slices, update the Layer Map and Slice Responsibilities table in this file.
