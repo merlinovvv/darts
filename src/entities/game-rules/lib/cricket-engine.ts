@@ -51,24 +51,26 @@ function getSectorPointValue(target: CricketTarget): number {
   return target === 'bull' ? 25 : target
 }
 
-function isTargetClosedForAll(
-  session: GameSession,
-  target: CricketTarget,
-): boolean {
-  const states = session.playerStates as Record<string, CricketPlayerState>
-
-  return getActivePlayers(session).every((player) => {
-    const marks = states[player.id]?.[target]?.marks ?? 0
-    return marks >= 3
-  })
-}
-
 function hasClosedAllTargets(state: CricketPlayerState): boolean {
   return CRICKET_TARGETS.every((target) => state[target].marks >= 3)
 }
 
 function getTotalPoints(state: CricketPlayerState): number {
   return CRICKET_TARGETS.reduce((sum, target) => sum + state[target].points, 0)
+}
+
+function hasOpenOpponentOnTarget(
+  session: GameSession,
+  target: CricketTarget,
+  playerStates: Record<string, CricketPlayerState>,
+): boolean {
+  return getActivePlayers(session).some((player) => {
+    if (player.id === session.currentPlayerId) {
+      return false
+    }
+
+    return (playerStates[player.id]?.[target]?.marks ?? 0) < 3
+  })
 }
 
 function applyCricketHit(session: GameSession, hit: DartHit): GameSession {
@@ -83,22 +85,20 @@ function applyCricketHit(session: GameSession, hit: DartHit): GameSession {
   const playerState = playerStates[session.currentPlayerId]
   const sectorState = { ...playerState[target] }
   const marksToAdd = getMarksFromHit(hit)
-  const allClosed = isTargetClosedForAll(session, target)
+  const canScorePoints = hasOpenOpponentOnTarget(session, target, playerStates)
 
-  if (!allClosed) {
-    if (sectorState.marks < 3) {
-      const marksNeeded = 3 - sectorState.marks
-      const closingMarks = Math.min(marksToAdd, marksNeeded)
-      const overflowMarks = marksToAdd - closingMarks
+  if (sectorState.marks < 3) {
+    const marksNeeded = 3 - sectorState.marks
+    const closingMarks = Math.min(marksToAdd, marksNeeded)
+    const overflowMarks = marksToAdd - closingMarks
 
-      sectorState.marks += closingMarks
+    sectorState.marks += closingMarks
 
-      if (overflowMarks > 0) {
-        sectorState.points += getSectorPointValue(target) * overflowMarks
-      }
-    } else {
-      sectorState.points += hit.score
+    if (overflowMarks > 0 && canScorePoints) {
+      sectorState.points += getSectorPointValue(target) * overflowMarks
     }
+  } else if (canScorePoints) {
+    sectorState.points += hit.score
   }
 
   playerState[target] = sectorState

@@ -344,10 +344,21 @@ export function buildWedgeHitPaths(sectorOrder: number[]): SectorPath[] {
 
 export function getWedgeHighlightPath(
   sectorOrder: number[],
-  selection: { kind: 'sector'; sector: number } | { kind: 'bull' } | null,
+  selection:
+    | { kind: 'sector'; sector: number }
+    | { kind: 'bull' }
+    | { kind: 'miss' }
+    | null,
 ): string | undefined {
   if (!selection) {
     return undefined
+  }
+
+  if (selection.kind === 'miss') {
+    return missRingPath(
+      R.doubleOuter - MISS_HIT_PADDING.inner,
+      R.missOuter + MISS_HIT_PADDING.outer,
+    )
   }
 
   if (selection.kind === 'bull') {

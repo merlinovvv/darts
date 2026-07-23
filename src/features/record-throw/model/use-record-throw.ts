@@ -1,7 +1,6 @@
 import { useState } from 'react'
 
 import {
-  createDartHit,
   type DartHit,
   type WedgeSelection,
 } from '@/entities/dart-sector'
@@ -24,12 +23,6 @@ export function useRecordThrow() {
 
   const handleWedgeSelect = (selection: WedgeSelection) => {
     if (isDisabled) {
-      return
-    }
-
-    if (selection.kind === 'miss') {
-      recordThrow(createDartHit('miss', 'miss'))
-      setPendingSelection(null)
       return
     }
 

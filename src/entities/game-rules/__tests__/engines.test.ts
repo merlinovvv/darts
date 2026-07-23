@@ -153,6 +153,40 @@ describe('cricketEngine', () => {
     expect(state[20].points).toBe(20)
   })
 
+  it('does not award overflow points when opponent already closed the sector', () => {
+    const session = createCricketSession()
+    const players = session.players
+    const playerA = players[0].id
+    const playerB = players[1].id
+
+    const closedByA = createEmptyCricketState()
+    closedByA[20].marks = 3
+
+    const openForB = createEmptyCricketState()
+    openForB[20].marks = 2
+
+    let riggedSession: GameSession = {
+      ...session,
+      currentPlayerId: playerB,
+      playerStates: {
+        [playerA]: closedByA,
+        [playerB]: openForB,
+      },
+    }
+
+    riggedSession = cricketEngine.applyThrow(
+      riggedSession,
+      createDartHit(20, 'triple'),
+    ).session
+
+    const state = riggedSession.playerStates[playerB] as {
+      20: { marks: number; points: number }
+    }
+
+    expect(state[20].marks).toBe(3)
+    expect(state[20].points).toBe(0)
+  })
+
   it('does not win when all sectors closed but opponent has more points', () => {
     const session = createCricketSession()
     const players = session.players

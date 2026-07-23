@@ -207,10 +207,9 @@ export function Dartboard({
     ? getHighlightPath(DARTBOARD_ORDER, pulseHit)
     : undefined
 
-  const pendingHighlightPath =
-    pendingSelection?.kind === 'sector' || pendingSelection?.kind === 'bull'
-      ? getWedgeHighlightPath(DARTBOARD_ORDER, pendingSelection)
-      : undefined
+  const pendingHighlightPath = pendingSelection
+    ? getWedgeHighlightPath(DARTBOARD_ORDER, pendingSelection)
+    : undefined
 
   const handleHit = (path: SectorPath) => {
     if (!disabled) {
