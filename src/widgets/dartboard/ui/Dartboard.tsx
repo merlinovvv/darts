@@ -26,7 +26,6 @@ import {
   buildWedgeHitPaths,
   getHighlightPath,
   getSectorLabelPosition,
-  getWedgeHighlightPath,
   type SectorPath,
 } from '../lib/geometry'
 
@@ -222,11 +221,6 @@ export function Dartboard({
   const highlightPath = pulseHit
     ? getHighlightPath(DARTBOARD_ORDER, pulseHit, palette)
     : undefined
-
-  const pendingHighlightPath =
-    !preview && pendingSelection
-      ? getWedgeHighlightPath(DARTBOARD_ORDER, pendingSelection)
-      : undefined
 
   const handleHit = (path: SectorPath) => {
     if (interactive && !disabled && onWedgeSelect) {
