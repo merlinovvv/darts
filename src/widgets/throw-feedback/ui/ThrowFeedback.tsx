@@ -1,10 +1,10 @@
 import { formatDartHit } from '@/entities/dart-sector'
-import { useGameStore } from '@/entities/game'
+import { useActiveSession } from '@/entities/game'
 import { Badge } from '@/shared/ui'
 import { cn } from '@/shared/lib'
 
 export function ThrowFeedback() {
-  const session = useGameStore((state) => state.session)
+  const session = useActiveSession()
 
   if (!session || session.status !== 'active') {
     return null
@@ -19,11 +19,11 @@ export function ThrowFeedback() {
         className={cn(
           'rounded-xl border-2 px-4 py-4 text-center transition-all',
           lastHitLabel
-            ? 'border-foreground bg-foreground text-background'
-            : 'border-dashed border-muted-foreground/40 bg-muted/20 text-muted-foreground',
+            ? 'border-hub-green bg-hub-green text-background'
+            : 'border-dashed border-muted-foreground/40 bg-card text-muted-foreground',
         )}
       >
-        <p className="text-xs uppercase tracking-wide opacity-80">
+        <p className="text-sm font-semibold uppercase tracking-wide opacity-80">
           Последний бросок
         </p>
         <p className="mt-1 text-3xl font-bold">

@@ -25,10 +25,10 @@ export function SelectSoloGame({ selectedGameId, onSelect }: SelectSoloGameProps
               key={game.id}
               htmlFor={`solo-game-${game.id}`}
               className={cn(
-                'rounded-xl border p-4 transition-colors',
+                'rounded-2xl border bg-card p-4 transition-colors',
                 isSelected
-                  ? 'border-foreground bg-muted/50 ring-1 ring-foreground'
-                  : 'border-border hover:bg-muted/30',
+                  ? 'border-hub-green bg-hub-green/10 ring-1 ring-hub-green'
+                  : 'border-border/70 hover:bg-accent/40',
               )}
             >
               <Field orientation="horizontal">

@@ -1,3 +1,6 @@
+import type { BoardPalette } from '@/entities/board-theme'
+import { DEFAULT_BOARD_THEME_ID, getBoardTheme } from '@/entities/board-theme'
+
 const TAU = Math.PI * 2
 const DEG = Math.PI / 180
 
@@ -16,17 +19,20 @@ export interface SectorPath {
   isHitTarget?: boolean
 }
 
+const DEFAULT_PALETTE = getBoardTheme(DEFAULT_BOARD_THEME_ID).palette
+
 export const BOARD_SIZE = 400
 export const CENTER = BOARD_SIZE / 2
 
 const R = {
   missOuter: 200,
-  doubleOuter: 170,
-  doubleInner: 160,
-  tripleOuter: 105,
-  tripleInner: 95,
-  bullOuter: 26,
-  bullInner: 15,
+  // Игровое поле чуть сжато — кольцо «Мимо» / номера шире (~42 вместо 30).
+  doubleOuter: 158,
+  doubleInner: 148,
+  tripleOuter: 98,
+  tripleInner: 88,
+  bullOuter: 24,
+  bullInner: 14,
 }
 
 const HIT_PADDING = {
@@ -109,18 +115,19 @@ function paddedArcPath(
 
 function buildSectorPaths(
   sectorOrder: number[],
-  options: { hitsOnly: boolean },
+  options: { hitsOnly: boolean; palette: BoardPalette },
 ): SectorPath[] {
   const paths: SectorPath[] = []
   const sectorAngle = 360 / sectorOrder.length
   const half = sectorAngle / 2
+  const { palette } = options
 
   sectorOrder.forEach((sector, index) => {
     const start = index * sectorAngle - half
     const end = start + sectorAngle
     const isEven = index % 2 === 0
-    const baseFill = isEven ? '#111111' : '#f5f5f5'
-    const accentFill = isEven ? '#b91c1c' : '#15803d'
+    const baseFill = isEven ? palette.dark : palette.light
+    const accentFill = isEven ? palette.accentDark : palette.accentLight
 
     if (!options.hitsOnly) {
       paths.push({
@@ -223,7 +230,7 @@ function buildSectorPaths(
       d: ringPath(CENTER, CENTER, R.bullInner, R.bullOuter),
       sector: 25,
       multiplier: 'single',
-      fill: '#15803d',
+      fill: palette.bullOuter,
     })
 
     paths.push({
@@ -231,7 +238,7 @@ function buildSectorPaths(
       d: `M ${CENTER} ${CENTER} m 0 -${R.bullInner} a ${R.bullInner} ${R.bullInner} 0 1 1 0 ${R.bullInner * 2} a ${R.bullInner} ${R.bullInner} 0 1 1 0 -${R.bullInner * 2}`,
       sector: 50,
       multiplier: 'single',
-      fill: '#b91c1c',
+      fill: palette.bullInner,
     })
   }
 
@@ -250,7 +257,7 @@ function buildSectorPaths(
       d: missRingPath(R.doubleOuter, R.missOuter),
       sector: 'miss',
       multiplier: 'miss',
-      fill: '#e5e5e5',
+      fill: palette.numberRing,
     })
   }
 
@@ -278,16 +285,20 @@ function buildSectorPaths(
   return paths
 }
 
-export function buildDartboardVisualPaths(sectorOrder: number[]): SectorPath[] {
-  return buildSectorPaths(sectorOrder, { hitsOnly: false }).filter(
+export function buildDartboardVisualPaths(
+  sectorOrder: number[],
+  palette: BoardPalette = DEFAULT_PALETTE,
+): SectorPath[] {
+  return buildSectorPaths(sectorOrder, { hitsOnly: false, palette }).filter(
     (path) => !path.isHitTarget,
   )
 }
 
 export function buildDartboardHitPaths(sectorOrder: number[]): SectorPath[] {
-  return buildSectorPaths(sectorOrder, { hitsOnly: true }).filter(
-    (path) => path.isHitTarget,
-  )
+  return buildSectorPaths(sectorOrder, {
+    hitsOnly: true,
+    palette: DEFAULT_PALETTE,
+  }).filter((path) => path.isHitTarget)
 }
 
 const WEDGE_HIT_PADDING = 2
@@ -378,8 +389,11 @@ export function getWedgeHighlightPath(
   return arcPath(CENTER, CENTER, R.bullOuter, R.doubleOuter, start, end)
 }
 
-export function buildDartboardPaths(sectorOrder: number[]): SectorPath[] {
-  return buildSectorPaths(sectorOrder, { hitsOnly: false }).filter(
+export function buildDartboardPaths(
+  sectorOrder: number[],
+  palette: BoardPalette = DEFAULT_PALETTE,
+): SectorPath[] {
+  return buildSectorPaths(sectorOrder, { hitsOnly: false, palette }).filter(
     (path) => !path.isHitTarget,
   )
 }
@@ -387,9 +401,10 @@ export function buildDartboardPaths(sectorOrder: number[]): SectorPath[] {
 export function getHighlightPath(
   sectorOrder: number[],
   hit: { sector: SectorPath['sector']; multiplier: SectorPath['multiplier'] },
+  palette: BoardPalette = DEFAULT_PALETTE,
 ): SectorPath | undefined {
   const allPaths = [
-    ...buildDartboardVisualPaths(sectorOrder),
+    ...buildDartboardVisualPaths(sectorOrder, palette),
     ...buildDartboardHitPaths(sectorOrder),
   ]
 
@@ -398,6 +413,9 @@ export function getHighlightPath(
   )
 }
 
+/** Середина номерного кольца между doubleOuter и missOuter. */
+const LABEL_RADIUS = (R.doubleOuter + R.missOuter) / 2
+
 export function getSectorLabelPosition(
   sector: number,
   sectorOrder: number[],
@@ -405,7 +423,7 @@ export function getSectorLabelPosition(
   const index = sectorOrder.indexOf(sector)
   const sectorAngle = 360 / sectorOrder.length
   const angle = index * sectorAngle
-  return polar(CENTER, CENTER, 132, angle)
+  return polar(CENTER, CENTER, LABEL_RADIUS, angle)
 }
 
 export function isLightSector(sector: number, sectorOrder: number[]): boolean {

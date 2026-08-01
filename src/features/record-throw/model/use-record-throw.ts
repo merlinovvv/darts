@@ -4,12 +4,12 @@ import {
   type DartHit,
   type WedgeSelection,
 } from '@/entities/dart-sector'
-import { useGameStore } from '@/entities/game'
+import { useActiveSession, useGameStore } from '@/entities/game'
 import { getMaxThrowsPerTurn } from '@/entities/game-rules'
 
 export function useRecordThrow() {
   const recordThrow = useGameStore((state) => state.recordThrow)
-  const session = useGameStore((state) => state.session)
+  const session = useActiveSession()
   const [pendingSelection, setPendingSelection] = useState<WedgeSelection | null>(
     null,
   )

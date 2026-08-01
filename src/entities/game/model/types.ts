@@ -17,7 +17,9 @@ export type GameMode =
 
 export type X01Target = 301 | 501
 export type X01Variant = 'double-out' | 'straight-out'
-export type GameStatus = 'active' | 'finished'
+export type GameStatus = 'active' | 'waiting' | 'finished'
+
+export type GameSource = 'daily-challenge'
 
 export interface X01Config {
   mode: 'x01'
@@ -204,6 +206,7 @@ export interface GameSession {
   tiePlayerIds?: string[]
   removedPlayerIds?: string[]
   startedAt: string
+  source?: GameSource
 }
 
 export const CRICKET_TARGETS: CricketTarget[] = [

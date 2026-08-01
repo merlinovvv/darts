@@ -17,6 +17,8 @@ interface SelectGameProps {
   onSelect: (gameId: string) => void
 }
 
+type X01Variant = 'double-out' | 'straight-out'
+
 function getSelectedGroup(
   groups: ReturnType<typeof getGameGroups>,
   selectedGameId: string | null,
@@ -32,9 +34,7 @@ function getSelectedGroup(
   )
 }
 
-function getCurrentVariant(
-  selectedGameId: string | null,
-): 'double-out' | 'straight-out' {
+function getCurrentVariant(selectedGameId: string | null): X01Variant {
   const selected = selectedGameId ? getGameDefinition(selectedGameId) : undefined
   if (selected && isX01Config(selected.config)) {
     return selected.config.variant
@@ -43,30 +43,27 @@ function getCurrentVariant(
   return 'double-out'
 }
 
-function getVariantForGroup(
-  games: GameDefinition[],
-  selectedGameId: string | null,
-): 'double-out' | 'straight-out' {
-  const selected = games.find((game) => game.id === selectedGameId)
-  if (selected && isX01Config(selected.config)) {
-    return selected.config.variant
-  }
-
-  return getCurrentVariant(selectedGameId)
-}
-
 function findGameByGroupAndVariant(
   games: GameDefinition[],
-  variant: 'double-out' | 'straight-out',
+  variant: X01Variant,
 ) {
   return games.find(
     (game) => isX01Config(game.config) && game.config.variant === variant,
   )
 }
 
+function getGroupDescription(games: GameDefinition[]): string {
+  if (games.length === 1) {
+    return games[0].description
+  }
+
+  return 'Финиш double-out или любым попаданием на 0'
+}
+
 export function SelectGame({ selectedGameId, onSelect }: SelectGameProps) {
   const groups = getGameGroups('multiplayer')
   const selectedGroup = getSelectedGroup(groups, selectedGameId)
+  const variant = getCurrentVariant(selectedGameId)
 
   return (
     <RadioGroup
@@ -82,8 +79,8 @@ export function SelectGame({ selectedGameId, onSelect }: SelectGameProps) {
           return
         }
 
-        const variant = getCurrentVariant(selectedGameId)
-        const game = findGameByGroupAndVariant(groupGames, variant)
+        const nextVariant = getCurrentVariant(selectedGameId)
+        const game = findGameByGroupAndVariant(groupGames, nextVariant)
         if (game) {
           onSelect(game.id)
         }
@@ -92,77 +89,77 @@ export function SelectGame({ selectedGameId, onSelect }: SelectGameProps) {
     >
       {groups.map((group) => {
         const isSelected = selectedGroup === group.group
-        const isX01 = group.games.length > 1
-        const variant = isX01
-          ? getVariantForGroup(group.games, selectedGameId)
-          : null
-        const activeGame =
-          group.games.find((game) => game.id === selectedGameId) ??
-          findGameByGroupAndVariant(group.games, variant ?? 'double-out') ??
-          group.games[0]
+        const hasVariants = group.games.length > 1
 
         return (
           <FieldLabel
             key={group.group}
             htmlFor={`game-${group.group}`}
             className={cn(
-              'rounded-xl border p-4 transition-colors',
+              'rounded-2xl border bg-card p-4 transition-colors',
               isSelected
-                ? 'border-foreground bg-muted/50 ring-1 ring-foreground'
-                : 'border-border hover:bg-muted/30',
+                ? 'border-hub-green bg-hub-green/10 ring-1 ring-hub-green'
+                : 'border-border/70 hover:bg-accent/40',
             )}
           >
             <Field orientation="horizontal">
               <FieldContent>
                 <FieldTitle className="text-base">{group.groupLabel}</FieldTitle>
-                <FieldDescription>{activeGame.description}</FieldDescription>
+                <FieldDescription>
+                  {getGroupDescription(group.games)}
+                </FieldDescription>
 
-                {isX01 ? (
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      className={cn(
-                        'min-h-[44px] rounded-md border px-3 py-2 text-sm font-medium transition-colors',
-                        variant === 'double-out'
-                          ? 'border-foreground bg-background text-foreground shadow-sm'
-                          : 'border-transparent bg-muted text-muted-foreground',
-                      )}
-                      onClick={(event) => {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        const game = findGameByGroupAndVariant(
-                          group.games,
-                          'double-out',
-                        )
-                        if (game) {
-                          onSelect(game.id)
-                        }
-                      }}
-                    >
-                      Double-out
-                    </button>
-                    <button
-                      type="button"
-                      className={cn(
-                        'min-h-[44px] rounded-md border px-3 py-2 text-sm font-medium transition-colors',
-                        variant === 'straight-out'
-                          ? 'border-foreground bg-background text-foreground shadow-sm'
-                          : 'border-transparent bg-muted text-muted-foreground',
-                      )}
-                      onClick={(event) => {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        const game = findGameByGroupAndVariant(
-                          group.games,
-                          'straight-out',
-                        )
-                        if (game) {
-                          onSelect(game.id)
-                        }
-                      }}
-                    >
-                      Без правила
-                    </button>
+                {isSelected && hasVariants ? (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Режим финиша
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        className={cn(
+                          'min-h-[44px] rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
+                          variant === 'double-out'
+                            ? 'border-hub-green bg-background text-foreground shadow-sm'
+                            : 'border-transparent bg-muted text-muted-foreground',
+                        )}
+                        onClick={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          const game = findGameByGroupAndVariant(
+                            group.games,
+                            'double-out',
+                          )
+                          if (game) {
+                            onSelect(game.id)
+                          }
+                        }}
+                      >
+                        Double-out
+                      </button>
+                      <button
+                        type="button"
+                        className={cn(
+                          'min-h-[44px] rounded-lg border px-3 py-2 text-sm font-medium transition-colors',
+                          variant === 'straight-out'
+                            ? 'border-hub-green bg-background text-foreground shadow-sm'
+                            : 'border-transparent bg-muted text-muted-foreground',
+                        )}
+                        onClick={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          const game = findGameByGroupAndVariant(
+                            group.games,
+                            'straight-out',
+                          )
+                          if (game) {
+                            onSelect(game.id)
+                          }
+                        }}
+                      >
+                        Без правила
+                      </button>
+                    </div>
                   </div>
                 ) : null}
               </FieldContent>

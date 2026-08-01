@@ -1,6 +1,7 @@
 export { Badge } from './badge'
 export { Button } from './button'
 export { Card, CardHeader, CardTitle, CardDescription, CardContent } from './card'
+export { DartboardMark } from './dartboard-mark'
 export {
   Dialog,
   DialogPortal,
@@ -22,6 +23,7 @@ export {
   FieldTitle,
   Label,
 } from './field'
+export { Progress } from './progress'
 export { RadioGroup, RadioGroupItem } from './radio-group'
 export { ScrollArea, ScrollBar } from './scroll-area'
 export { Separator } from './separator'

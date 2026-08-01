@@ -16,12 +16,12 @@ export function SoloGamesPage() {
   )
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col gap-6 p-4">
-      <div className="space-y-2 pt-4">
-        <p className="text-sm uppercase tracking-wide text-muted-foreground">
+    <main className="flex min-h-dvh flex-col gap-6 p-4 pb-6">
+      <div className="space-y-2 pt-2">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-hub-green">
           Самому
         </p>
-        <h1 className="text-3xl font-bold">Тренировки</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight">Тренировки</h1>
         <p className="text-muted-foreground">
           Практика точности, даблов, окончаний и набора
         </p>
@@ -32,7 +32,7 @@ export function SoloGamesPage() {
         onSelect={setSelectedGameId}
       />
 
-      <div className="mt-auto flex gap-2">
+      <div className="mt-auto flex gap-2 pt-2">
         <Button
           variant="outline"
           className="flex-1"
@@ -41,7 +41,8 @@ export function SoloGamesPage() {
           Назад
         </Button>
         <Button
-          className="flex-1"
+          variant="inverse"
+          className="flex-1 font-bold uppercase tracking-wide"
           disabled={!selectedGameId}
           onClick={() => {
             const definition = selectedGameId

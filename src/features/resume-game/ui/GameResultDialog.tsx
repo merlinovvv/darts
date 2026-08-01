@@ -1,4 +1,4 @@
-import { useGameStore } from '@/entities/game'
+import { useActiveSession, useGameStore } from '@/entities/game'
 import { UndoThrowButton } from '@/features/undo-throw'
 import { GameStatistics } from '@/widgets/game-statistics'
 import { VictoryFireworks } from '@/widgets/victory-fireworks'
@@ -13,7 +13,7 @@ import {
 } from '@/shared/ui'
 
 export function GameResultDialog() {
-  const session = useGameStore((state) => state.session)
+  const session = useActiveSession()
   const abandonGame = useGameStore((state) => state.abandonGame)
 
   if (!session || session.status !== 'finished') {
@@ -48,7 +48,8 @@ export function GameResultDialog() {
           <DialogFooter className="shrink-0 flex-col gap-2 border-t bg-background px-6 py-4 sm:flex-col">
             <UndoThrowButton />
             <Button
-              className="w-full"
+              variant="inverse"
+              className="w-full font-bold uppercase tracking-wide"
               onClick={() => {
                 abandonGame()
                 window.location.href = '/'

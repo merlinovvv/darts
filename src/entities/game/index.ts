@@ -12,6 +12,7 @@ export type {
   GameConfig,
   GameMode,
   GameSession,
+  GameSource,
   GameStatus,
   HundredAt20PlayerState,
   JdcChallengePlayerState,
@@ -40,7 +41,10 @@ export {
 } from './model/types'
 export {
   createTurnSnapshotFromSession,
+  useActiveSession,
   useGameStore,
+  useOpenSessions,
+  useUndoCount,
 } from './model/game-store'
 export {
   canAddPlayer,

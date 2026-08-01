@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import {
+  type BoardPalette,
+  useSelectedBoardTheme,
+} from '@/entities/board-theme'
+import {
   createDartHit,
   DARTBOARD_ORDER,
   formatDartHit,
@@ -23,17 +27,20 @@ import {
   getHighlightPath,
   getSectorLabelPosition,
   getWedgeHighlightPath,
-  isLightSector,
   type SectorPath,
 } from '../lib/geometry'
 
 interface DartboardProps {
-  onWedgeSelect: (selection: WedgeSelection) => void
+  onWedgeSelect?: (selection: WedgeSelection) => void
   disabled?: boolean
   className?: string
   lastHit?: DartHit | null
   pendingSelection?: WedgeSelection | null
   cellOverlays?: Record<string, CellOverlay>
+  /** Мини-превью без кликов и легенды. */
+  preview?: boolean
+  /** Переопределение палитры (для карточек выбора доски). */
+  palette?: BoardPalette
 }
 
 function pathToWedgeSelection(path: SectorPath): WedgeSelection {
@@ -185,37 +192,50 @@ export function Dartboard({
   lastHit = null,
   pendingSelection = null,
   cellOverlays = {},
+  preview = false,
+  palette: paletteOverride,
 }: DartboardProps) {
+  const selectedTheme = useSelectedBoardTheme()
+  const palette = paletteOverride ?? selectedTheme.palette
+  const interactive = !preview && Boolean(onWedgeSelect)
+
   const visualPaths = useMemo(
-    () => buildDartboardVisualPaths(DARTBOARD_ORDER),
-    [],
+    () => buildDartboardVisualPaths(DARTBOARD_ORDER, palette),
+    [palette],
   )
   const hitPaths = useMemo(() => buildWedgeHitPaths(DARTBOARD_ORDER), [])
   const [pulseHit, setPulseHit] = useState<DartHit | null>(null)
+  const [pulseKey, setPulseKey] = useState(0)
 
   useEffect(() => {
-    if (!lastHit) {
+    if (!lastHit || preview) {
       return
     }
 
     setPulseHit(lastHit)
-    const timer = window.setTimeout(() => setPulseHit(null), 700)
+    setPulseKey((key) => key + 1)
+    // Держим подсветку до конца fade-анимации (~900ms).
+    const timer = window.setTimeout(() => setPulseHit(null), 900)
     return () => window.clearTimeout(timer)
-  }, [lastHit])
+  }, [lastHit, preview])
 
   const highlightPath = pulseHit
-    ? getHighlightPath(DARTBOARD_ORDER, pulseHit)
+    ? getHighlightPath(DARTBOARD_ORDER, pulseHit, palette)
     : undefined
 
-  const pendingHighlightPath = pendingSelection
-    ? getWedgeHighlightPath(DARTBOARD_ORDER, pendingSelection)
-    : undefined
+  const pendingHighlightPath =
+    !preview && pendingSelection
+      ? getWedgeHighlightPath(DARTBOARD_ORDER, pendingSelection)
+      : undefined
 
   const handleHit = (path: SectorPath) => {
-    if (!disabled) {
+    if (interactive && !disabled && onWedgeSelect) {
       onWedgeSelect(pathToWedgeSelection(path))
     }
   }
+
+  const wireWidth = preview ? 0.35 : 0.5
+  const labelSize = preview ? 'text-[17px]' : 'text-[20px]'
 
   return (
     <div className={cn('mx-auto w-full max-w-md touch-manipulation', className)}>
@@ -225,43 +245,45 @@ export function Dartboard({
         role="img"
         aria-label="Дартс-доска"
       >
-        <DartboardOverlayPatterns />
+        {!preview ? <DartboardOverlayPatterns /> : null}
         <g pointerEvents="none">
           {visualPaths.map((path) => (
             <path
               key={path.id}
               d={path.d}
               fill={path.fill}
-              stroke="#0a0a0a"
-              strokeWidth={0.5}
+              stroke={palette.wire}
+              strokeWidth={wireWidth}
             />
           ))}
 
-          {visualPaths.map((path) => {
-            const hit =
-              path.sector === 'miss'
-                ? createDartHit('miss', 'miss')
-                : createDartHit(path.sector as SectorNumber, path.multiplier)
-            const overlay = cellOverlays[getCellOverlayKey(hit.sector, hit.multiplier)]
+          {!preview
+            ? visualPaths.map((path) => {
+                const hit =
+                  path.sector === 'miss'
+                    ? createDartHit('miss', 'miss')
+                    : createDartHit(path.sector as SectorNumber, path.multiplier)
+                const overlay =
+                  cellOverlays[getCellOverlayKey(hit.sector, hit.multiplier)]
 
-            if (!overlay || overlay.type === 'bust') {
-              return null
-            }
+                if (!overlay || overlay.type === 'bust') {
+                  return null
+                }
 
-            return (
-              <path
-                key={`overlay-${path.id}`}
-                d={path.d}
-                fill={getOverlayFill(overlay.type)}
-                stroke={getOverlayStroke(overlay.type)}
-                strokeWidth={usesStripedOverlay(overlay.type) ? 0.75 : 1}
-              />
-            )
-          })}
+                return (
+                  <path
+                    key={`overlay-${path.id}`}
+                    d={path.d}
+                    fill={getOverlayFill(overlay.type)}
+                    stroke={getOverlayStroke(overlay.type)}
+                    strokeWidth={usesStripedOverlay(overlay.type) ? 0.75 : 1}
+                  />
+                )
+              })
+            : null}
 
           {DARTBOARD_ORDER.map((sector) => {
             const { x, y } = getSectorLabelPosition(sector, DARTBOARD_ORDER)
-            const isLight = isLightSector(sector, DARTBOARD_ORDER)
 
             return (
               <text
@@ -270,94 +292,83 @@ export function Dartboard({
                 y={y}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                className={cn(
-                  'text-[16px] font-bold',
-                  isLight ? 'fill-black' : 'fill-white',
-                )}
-                style={
-                  isLight
-                    ? { paintOrder: 'stroke', stroke: '#fff', strokeWidth: 1.5 }
-                    : { paintOrder: 'stroke', stroke: '#000', strokeWidth: 2 }
-                }
+                fill={palette.numberText}
+                className={cn(labelSize, 'font-bold')}
+                style={{ paintOrder: 'stroke', stroke: '#000', strokeWidth: 1.2 }}
               >
                 {sector}
               </text>
             )
           })}
 
-          {visualPaths.map((path) => {
-            const hit =
-              path.sector === 'miss'
-                ? createDartHit('miss', 'miss')
-                : createDartHit(path.sector as SectorNumber, path.multiplier)
-            const overlay = cellOverlays[getCellOverlayKey(hit.sector, hit.multiplier)]
+          {!preview
+            ? visualPaths.map((path) => {
+                const hit =
+                  path.sector === 'miss'
+                    ? createDartHit('miss', 'miss')
+                    : createDartHit(path.sector as SectorNumber, path.multiplier)
+                const overlay =
+                  cellOverlays[getCellOverlayKey(hit.sector, hit.multiplier)]
 
-            if (overlay?.type !== 'bust') {
-              return null
-            }
+                if (overlay?.type !== 'bust') {
+                  return null
+                }
 
-            return (
-              <path
-                key={`bust-overlay-${path.id}`}
-                d={path.d}
-                fill={getOverlayFill(overlay.type)}
-                stroke={getOverlayStroke(overlay.type)}
-                strokeWidth={1}
-              />
-            )
-          })}
+                return (
+                  <path
+                    key={`bust-overlay-${path.id}`}
+                    d={path.d}
+                    fill={getOverlayFill(overlay.type)}
+                    stroke={getOverlayStroke(overlay.type)}
+                    strokeWidth={1}
+                  />
+                )
+              })
+            : null}
         </g>
-
-        {pendingHighlightPath ? (
-          <path
-            d={pendingHighlightPath}
-            fill="#3b82f6"
-            fillOpacity={0.35}
-            stroke="#2563eb"
-            strokeWidth={2}
-            pointerEvents="none"
-          />
-        ) : null}
 
         {highlightPath ? (
           <path
+            key={pulseKey}
             d={highlightPath.d}
             fill="#ffffff"
-            fillOpacity={0.45}
+            fillOpacity={0.5}
             stroke="#ffffff"
             strokeWidth={2}
             pointerEvents="none"
-            className="animate-pulse"
+            className="animate-dartboard-hit"
           />
         ) : null}
 
-        {hitPaths.map((path) => {
-          const wedgeSelection = pathToWedgeSelection(path)
-          const isPending = pendingSelection
-            ? wedgeSelectionsMatch(pendingSelection, wedgeSelection)
-            : false
+        {interactive
+          ? hitPaths.map((path) => {
+              const wedgeSelection = pathToWedgeSelection(path)
+              const isPending = pendingSelection
+                ? wedgeSelectionsMatch(pendingSelection, wedgeSelection)
+                : false
 
-          return (
-            <path
-              key={path.id}
-              d={path.d}
-              fill={isPending ? 'rgba(59, 130, 246, 0.2)' : 'transparent'}
-              className={cn(
-                'transition-colors',
-                disabled
-                  ? 'cursor-not-allowed'
-                  : 'cursor-pointer active:fill-white/20',
-              )}
-              onPointerDown={(event) => {
-                event.preventDefault()
-                handleHit(path)
-              }}
-            />
-          )
-        })}
+              return (
+                <path
+                  key={path.id}
+                  d={path.d}
+                  fill={isPending ? 'rgba(59, 130, 246, 0.2)' : 'transparent'}
+                  className={cn(
+                    'transition-colors',
+                    disabled
+                      ? 'cursor-not-allowed'
+                      : 'cursor-pointer active:fill-white/20',
+                  )}
+                  onPointerDown={(event) => {
+                    event.preventDefault()
+                    handleHit(path)
+                  }}
+                />
+              )
+            })
+          : null}
       </svg>
 
-      <DartboardLegend cellOverlays={cellOverlays} />
+      {!preview ? <DartboardLegend cellOverlays={cellOverlays} /> : null}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
-import { useGameStore } from '@/entities/game'
+import { useActiveSession, useGameStore } from '@/entities/game'
 import { ROUTES } from '@/shared/config/routes'
 import {
   Button,
@@ -16,7 +16,7 @@ import {
 export function ResumeGameDialog() {
   const navigate = useNavigate()
   const location = useLocation()
-  const session = useGameStore((state) => state.session)
+  const session = useActiveSession()
   const abandonGame = useGameStore((state) => state.abandonGame)
   const [open, setOpen] = useState(false)
   const [hydrated, setHydrated] = useState(() =>
@@ -80,6 +80,8 @@ export function ResumeGameDialog() {
             Начать новую
           </Button>
           <Button
+            variant="inverse"
+            className="font-bold uppercase tracking-wide"
             onClick={() => {
               handleDismiss()
               navigate(ROUTES.game)

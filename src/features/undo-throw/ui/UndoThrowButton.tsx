@@ -1,6 +1,6 @@
 import { Undo2 } from 'lucide-react'
 
-import { useGameStore } from '@/entities/game'
+import { useActiveSession, useGameStore, useUndoCount } from '@/entities/game'
 import { Button } from '@/shared/ui'
 
 interface UndoThrowButtonProps {
@@ -8,15 +8,15 @@ interface UndoThrowButtonProps {
 }
 
 export function UndoThrowButton({ className }: UndoThrowButtonProps) {
-  const session = useGameStore((state) => state.session)
-  const undoStack = useGameStore((state) => state.undoStack)
+  const session = useActiveSession()
+  const undoCount = useUndoCount()
   const undoLastThrow = useGameStore((state) => state.undoLastThrow)
 
   if (!session) {
     return null
   }
 
-  const canUndo = undoStack.length > 0
+  const canUndo = undoCount > 0
 
   return (
     <Button

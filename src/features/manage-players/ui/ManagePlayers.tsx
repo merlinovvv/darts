@@ -56,7 +56,7 @@ export function ManagePlayers({ players, onChange }: ManagePlayersProps) {
         {players.map((player, index) => (
           <div
             key={player.id}
-            className="flex items-center gap-2 rounded-lg border p-2"
+            className="flex items-center gap-2 rounded-xl border border-border/70 bg-card p-2"
           >
             <span className="w-6 text-center text-sm text-muted-foreground">
               {index + 1}
@@ -119,7 +119,7 @@ export function ManagePlayers({ players, onChange }: ManagePlayersProps) {
             }
           }}
         />
-        <Button type="button" variant="secondary" onClick={addPlayer}>
+        <Button type="button" variant="inverse" onClick={addPlayer}>
           Добавить
         </Button>
       </div>

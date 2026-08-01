@@ -31,27 +31,30 @@ export function GameSetupPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col gap-6 p-4">
-      <div className="space-y-2 pt-4">
-        <p className="text-sm uppercase tracking-wide text-muted-foreground">
+    <main className="flex min-h-dvh flex-col gap-6 p-4 pb-6">
+      <div className="space-y-2 pt-2">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-hub-green">
           Настройка
         </p>
-        <h1 className="text-3xl font-bold">{definition.name}</h1>
+        <h1 className="text-3xl font-extrabold tracking-tight">
+          {definition.name}
+        </h1>
         <p className="text-muted-foreground">{definition.description}</p>
       </div>
 
       <ManagePlayers players={players} onChange={setPlayers} />
 
-      <div className="mt-auto flex gap-2">
+      <div className="mt-auto flex gap-2 pt-2">
         <Button
           variant="outline"
           className="flex-1"
-          onClick={() => navigate(ROUTES.home)}
+          onClick={() => navigate(ROUTES.friends)}
         >
           Назад
         </Button>
         <Button
-          className="flex-1"
+          variant="inverse"
+          className="flex-1 font-bold uppercase tracking-wide"
           onClick={() => {
             startGame(definition.id, definition.config, players, 'multiplayer')
             navigate(ROUTES.game)

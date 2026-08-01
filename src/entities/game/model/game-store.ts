@@ -1,8 +1,15 @@
 import { create } from 'zustand'
+import { useShallow } from 'zustand/react/shallow'
 import { persist } from 'zustand/middleware'
 
 import type { DartHit } from '@/entities/dart-sector'
-import type { GameCategory, GameConfig, GameSession, TurnSnapshot } from '@/entities/game'
+import type {
+  GameCategory,
+  GameConfig,
+  GameSession,
+  GameSource,
+  TurnSnapshot,
+} from '@/entities/game'
 import { getNextActivePlayerId } from '../lib/session-players'
 import { getGameEngine, getMaxThrowsPerTurn } from '@/entities/game-rules'
 import type { Player } from '@/entities/player'
@@ -10,15 +17,20 @@ import { createPlayer, sortPlayersByOrder } from '@/entities/player'
 import { generateId } from '@/shared/lib'
 
 interface GameStore {
-  session: GameSession | null
+  sessions: GameSession[]
+  activeSessionId: string | null
   pendingGameId: string | null
-  undoStack: GameSession[]
+  undoStacks: Record<string, GameSession[]>
   startGame: (
     gameId: string,
     config: GameConfig,
     players: Player[],
     category?: GameCategory,
+    source?: GameSource,
   ) => void
+  setActiveSession: (sessionId: string) => void
+  pauseActiveSession: () => void
+  removeSession: (sessionId: string) => void
   setPendingGameId: (gameId: string | null) => void
   recordThrow: (hit: DartHit) => void
   undoLastThrow: () => void
@@ -28,11 +40,18 @@ interface GameStore {
   abandonGame: () => void
 }
 
+interface PersistedGameState {
+  sessions: GameSession[]
+  activeSessionId: string | null
+  pendingGameId: string | null
+}
+
 function createInitialSession(
   gameId: string,
   config: GameConfig,
   players: Player[],
   category: GameCategory,
+  source?: GameSource,
 ): GameSession {
   const engine = getGameEngine(config)
   const sortedPlayers = sortPlayersByOrder(players)
@@ -63,6 +82,7 @@ function createInitialSession(
     turnNumber: 1,
     status: 'active',
     startedAt: new Date().toISOString(),
+    ...(source ? { source } : {}),
   }
 
   return {
@@ -87,27 +107,106 @@ function advanceTurn(session: GameSession): GameSession {
   }
 }
 
+function findActiveSession(state: {
+  sessions: GameSession[]
+  activeSessionId: string | null
+}): GameSession | null {
+  return (
+    state.sessions.find((session) => session.id === state.activeSessionId) ??
+    null
+  )
+}
+
+function replaceSession(
+  sessions: GameSession[],
+  next: GameSession,
+): GameSession[] {
+  return sessions.map((session) => (session.id === next.id ? next : session))
+}
+
+function pauseIfActive(session: GameSession): GameSession {
+  return session.status === 'active' ? { ...session, status: 'waiting' } : session
+}
+
+function withoutUndoStack(
+  undoStacks: Record<string, GameSession[]>,
+  sessionId: string,
+): Record<string, GameSession[]> {
+  const next = { ...undoStacks }
+  delete next[sessionId]
+  return next
+}
+
 export const useGameStore = create<GameStore>()(
   persist(
     (set, get) => ({
-      session: null,
+      sessions: [],
+      activeSessionId: null,
       pendingGameId: null,
-      undoStack: [],
+      undoStacks: {},
 
       setPendingGameId(gameId) {
         set({ pendingGameId: gameId })
       },
 
-      startGame(gameId, config, players, category = 'multiplayer') {
-        set({
-          session: createInitialSession(gameId, config, players, category),
+      startGame(gameId, config, players, category = 'multiplayer', source) {
+        const session = createInitialSession(
+          gameId,
+          config,
+          players,
+          category,
+          source,
+        )
+
+        set((state) => ({
+          sessions: [
+            ...state.sessions
+              .filter((item) => item.status !== 'finished')
+              .map(pauseIfActive),
+            session,
+          ],
+          activeSessionId: session.id,
           pendingGameId: null,
-          undoStack: [],
-        })
+          undoStacks: { ...state.undoStacks, [session.id]: [] },
+        }))
+      },
+
+      setActiveSession(sessionId) {
+        set((state) => ({
+          activeSessionId: sessionId,
+          sessions: state.sessions.map((session) => {
+            if (session.id !== sessionId) {
+              return pauseIfActive(session)
+            }
+
+            return session.status === 'waiting'
+              ? { ...session, status: 'active' }
+              : session
+          }),
+        }))
+      },
+
+      pauseActiveSession() {
+        set((state) => ({
+          activeSessionId: null,
+          sessions: state.sessions.map((session) =>
+            session.id === state.activeSessionId ? pauseIfActive(session) : session,
+          ),
+        }))
+      },
+
+      removeSession(sessionId) {
+        set((state) => ({
+          sessions: state.sessions.filter((session) => session.id !== sessionId),
+          activeSessionId:
+            state.activeSessionId === sessionId ? null : state.activeSessionId,
+          undoStacks: withoutUndoStack(state.undoStacks, sessionId),
+        }))
       },
 
       recordThrow(hit) {
-        const { session, undoStack } = get()
+        const state = get()
+        const session = findActiveSession(state)
         if (!session || session.status !== 'active') {
           return
         }
@@ -137,6 +236,8 @@ export const useGameStore = create<GameStore>()(
           throwHistory: [...session.throwHistory, throwRecord],
         }
 
+        const undoStack = state.undoStacks[session.id] ?? []
+
         if (
           result.outcome === 'win' ||
           result.outcome === 'tie' ||
@@ -146,7 +247,13 @@ export const useGameStore = create<GameStore>()(
             nextSession = advanceTurn(nextSession)
           }
 
-          set({ session: nextSession, undoStack: [...undoStack, snapshot] })
+          set({
+            sessions: replaceSession(state.sessions, nextSession),
+            undoStacks: {
+              ...state.undoStacks,
+              [session.id]: [...undoStack, snapshot],
+            },
+          })
           return
         }
 
@@ -154,24 +261,38 @@ export const useGameStore = create<GameStore>()(
           nextSession = advanceTurn(nextSession)
         }
 
-        set({ session: nextSession, undoStack: [...undoStack, snapshot] })
+        set({
+          sessions: replaceSession(state.sessions, nextSession),
+          undoStacks: {
+            ...state.undoStacks,
+            [session.id]: [...undoStack, snapshot],
+          },
+        })
       },
 
       undoLastThrow() {
-        const { session, undoStack } = get()
+        const state = get()
+        const session = findActiveSession(state)
+        const undoStack = session ? state.undoStacks[session.id] ?? [] : []
+
         if (!session || undoStack.length === 0) {
           return
         }
 
         const previous = undoStack[undoStack.length - 1]
+
         set({
-          session: structuredClone(previous),
-          undoStack: undoStack.slice(0, -1),
+          sessions: replaceSession(state.sessions, structuredClone(previous)),
+          undoStacks: {
+            ...state.undoStacks,
+            [session.id]: undoStack.slice(0, -1),
+          },
         })
       },
 
       endTurn() {
-        const { session } = get()
+        const state = get()
+        const session = findActiveSession(state)
         if (!session || session.status !== 'active') {
           return
         }
@@ -181,11 +302,12 @@ export const useGameStore = create<GameStore>()(
           return
         }
 
-        set({ session: advanceTurn(session) })
+        set({ sessions: replaceSession(state.sessions, advanceTurn(session)) })
       },
 
       removePlayer(playerId) {
-        const { session } = get()
+        const state = get()
+        const session = findActiveSession(state)
         if (!session || session.status !== 'active' || session.category === 'solo') {
           return
         }
@@ -224,11 +346,12 @@ export const useGameStore = create<GameStore>()(
           }
         }
 
-        set({ session: nextSession })
+        set({ sessions: replaceSession(state.sessions, nextSession) })
       },
 
       addPlayer(name) {
-        const { session } = get()
+        const state = get()
+        const session = findActiveSession(state)
         if (!session || session.status !== 'active' || session.category === 'solo') {
           return
         }
@@ -237,30 +360,81 @@ export const useGameStore = create<GameStore>()(
         const player = createPlayer(name ?? '', session.players.length)
 
         set({
-          session: {
+          sessions: replaceSession(state.sessions, {
             ...session,
             players: [...session.players, player],
             playerStates: {
               ...session.playerStates,
               [player.id]: engine.initPlayerState(player, session.config),
             },
-          },
+          }),
         })
       },
 
       abandonGame() {
-        set({ session: null, pendingGameId: null, undoStack: [] })
+        set((state) => {
+          const activeId = state.activeSessionId
+
+          return {
+            sessions: state.sessions.filter((session) => session.id !== activeId),
+            activeSessionId: null,
+            pendingGameId: null,
+            undoStacks: activeId
+              ? withoutUndoStack(state.undoStacks, activeId)
+              : state.undoStacks,
+          }
+        })
       },
     }),
     {
       name: 'darts-game-storage',
-      partialize: (state) => ({
-        session: state.session,
+      version: 2,
+      migrate: (persisted, version) => {
+        if (version >= 2) {
+          return persisted as PersistedGameState
+        }
+
+        const legacy = persisted as {
+          session?: GameSession | null
+          pendingGameId?: string | null
+        } | null
+        const session = legacy?.session ?? null
+
+        return {
+          sessions: session ? [session] : [],
+          activeSessionId: session?.id ?? null,
+          pendingGameId: legacy?.pendingGameId ?? null,
+        }
+      },
+      partialize: (state): PersistedGameState => ({
+        sessions: state.sessions,
+        activeSessionId: state.activeSessionId,
         pendingGameId: state.pendingGameId,
       }),
     },
   ),
 )
+
+export function useActiveSession(): GameSession | null {
+  return useGameStore((state) => findActiveSession(state))
+}
+
+export function useOpenSessions(): GameSession[] {
+  return useGameStore(
+    useShallow((state) =>
+      state.sessions.filter((session) => session.status !== 'finished'),
+    ),
+  )
+}
+
+export function useUndoCount(): number {
+  return useGameStore(
+    (state) =>
+      (state.activeSessionId
+        ? state.undoStacks[state.activeSessionId]?.length
+        : 0) ?? 0,
+  )
+}
 
 export function createTurnSnapshotFromSession(session: GameSession): TurnSnapshot {
   return getGameEngine(session.config).createTurnSnapshot(session)

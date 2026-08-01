@@ -4,6 +4,7 @@ import { useState } from 'react'
 import {
   canRemovePlayer,
   isPlayerRemoved,
+  useActiveSession,
   useGameStore,
 } from '@/entities/game'
 import type { Player } from '@/entities/player'
@@ -22,7 +23,7 @@ interface RemovePlayerButtonProps {
 }
 
 export function RemovePlayerButton({ player }: RemovePlayerButtonProps) {
-  const session = useGameStore((state) => state.session)
+  const session = useActiveSession()
   const removePlayer = useGameStore((state) => state.removePlayer)
   const [open, setOpen] = useState(false)
 

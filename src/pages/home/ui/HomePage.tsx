@@ -1,69 +1,60 @@
-import { Users, User } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-import { ROUTES } from '@/shared/config/routes'
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui'
+import { CurrentGamesList } from "@/features/current-games";
+import { DailyChallengeCard } from "@/features/daily-challenge";
+import { ROUTES } from "@/shared/config/routes";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/shared/ui";
 
 export function HomePage() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col gap-6 p-4">
-      <div className="space-y-2 pt-4">
-        <p className="text-sm uppercase tracking-wide text-muted-foreground">
+    <main className="relative flex flex-col gap-6 overflow-hidden p-4 pb-6">
+      <div className="relative space-y-2 pt-2">
+        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-hub-green">
           Дартс
         </p>
-        <h1 className="text-3xl font-bold">Как играем?</h1>
-        <p className="text-muted-foreground">
-          Партия с друзьями или тренировка в одиночку
+        <h1 className="text-3xl font-extrabold tracking-tight">Как играем?</h1>
+        <p className="max-w-sm text-muted-foreground">
+          Партия с друзьями или ежедневное испытание для тренировки
         </p>
       </div>
 
-      <div className="space-y-3">
-        <Card
-          className="cursor-pointer transition-colors hover:bg-muted/30"
-          onClick={() => navigate(ROUTES.friends)}
-        >
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-3">
-              <Users className="h-6 w-6" />
-              <div>
-                <CardTitle className="text-lg">Играть с друзьями</CardTitle>
-                <CardDescription>301, 501, Крикет</CardDescription>
+      <div className="relative space-y-4">
+        <Card variant="feature">
+          <CardHeader className="p-5 pb-3">
+            <div className="flex items-start gap-3">
+              <Users className="mt-0.5 h-6 w-6 shrink-0 text-hub-green" />
+              <div className="min-w-0 space-y-1">
+                <CardTitle className="text-base font-extrabold uppercase tracking-wide">
+                  Играть с друзьями
+                </CardTitle>
+                <CardDescription>301 · 501 · Крикет</CardDescription>
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <Button className="w-full" onClick={() => navigate(ROUTES.friends)}>
-              Выбрать игру
+          <CardContent className="space-y-4 p-5 pt-0">
+            <CurrentGamesList />
+            <Button
+              variant="inverse"
+              className="w-full font-bold uppercase tracking-wide"
+              onClick={() => navigate(ROUTES.friends)}
+            >
+              Play now
             </Button>
           </CardContent>
         </Card>
 
-        <Card
-          className="cursor-pointer transition-colors hover:bg-muted/30"
-          onClick={() => navigate(ROUTES.solo)}
-        >
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-3">
-              <User className="h-6 w-6" />
-              <div>
-                <CardTitle className="text-lg">Играть самому</CardTitle>
-                <CardDescription>9 режимов тренировки</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Button
-              variant="secondary"
-              className="w-full"
-              onClick={() => navigate(ROUTES.solo)}
-            >
-              Выбрать тренировку
-            </Button>
-          </CardContent>
-        </Card>
+        <DailyChallengeCard />
       </div>
     </main>
-  )
+  );
 }

@@ -1,24 +1,15 @@
-import { isSoloSession, useGameStore } from '@/entities/game'
+import { isSoloSession, useActiveSession } from '@/entities/game'
 import { isCricketConfig, isX01Config } from '@/entities/game'
-import { getGameDefinition, getGameEngine, getCricketStatusLabel, getMaxThrowsPerTurn } from '@/entities/game-rules'
+import { getGameDefinition, getGameEngine, getMaxThrowsPerTurn } from '@/entities/game-rules'
 import { AddPlayerForm } from '@/features/add-player'
 import { RemovePlayerButton } from '@/features/remove-player'
 import { Badge, Card, CardContent, CardHeader, CardTitle } from '@/shared/ui'
 import { cn } from '@/shared/lib'
 
-function getCricketCellClass(status: 'open' | 'closed-player' | 'closed-all') {
-  switch (status) {
-    case 'closed-all':
-      return 'border-red-600/60 bg-red-50 dark:bg-red-950/30'
-    case 'closed-player':
-      return 'border-green-600/60 bg-green-50 dark:bg-green-950/30'
-    default:
-      return ''
-  }
-}
+import { CricketTable } from './CricketTable'
 
 export function Scoreboard() {
-  const session = useGameStore((state) => state.session)
+  const session = useActiveSession()
 
   if (!session) {
     return null
@@ -36,16 +27,16 @@ export function Scoreboard() {
   const maxThrows = getMaxThrowsPerTurn(session)
   const gameName = getGameDefinition(session.gameId)?.name
 
+  if (isCricket) {
+    return <CricketTable session={session} rows={rows} />
+  }
+
   return (
-    <Card className="mx-4 border shadow-none">
+    <Card variant="feature" className="mx-4 shadow-none">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-base">
-            {isSolo
-              ? gameName ?? 'Тренировка'
-              : isCricket
-                ? 'Таблица крикета'
-                : 'Счёт'}
+          <CardTitle className="text-base font-bold">
+            {isSolo ? gameName ?? 'Тренировка' : 'Счёт'}
           </CardTitle>
           {session.status === 'finished' ? (
             <Badge variant="secondary">Игра окончена</Badge>
@@ -56,105 +47,82 @@ export function Scoreboard() {
             На доске: серая подсветка — перебор, зелёные полоски — финиш
           </p>
         ) : null}
-        {isCricket ? (
-          <p className="text-xs text-muted-foreground">
-            Зелёный — закрыт игроком, красный — закрыт всеми
-          </p>
-        ) : null}
       </CardHeader>
       <CardContent className="space-y-3">
-        {rows.map((row, index) => {
+        {rows.map((row) => {
           const player = session.players.find(
             (sessionPlayer) => sessionPlayer.id === row.playerId,
           )
 
           return (
-          <div
-            key={row.playerId}
-            className={cn(
-              'rounded-lg border p-3',
-              row.isCurrent && !row.isRemoved && 'border-foreground bg-muted/40',
-              row.isRemoved && 'border-dashed bg-muted/20 opacity-70',
-            )}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex min-w-0 flex-1 items-start gap-1">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={cn(
-                        'font-medium',
-                        row.isRemoved && 'text-muted-foreground line-through',
-                      )}
-                    >
-                      {index + 1}. {row.playerName}
-                    </span>
-                    {row.isCurrent && !row.isRemoved && session.status === 'active' ? (
-                      <Badge className="text-[10px] font-normal">
-                        Бросает · {Math.min(throwNumber, maxThrows)}-й
-                      </Badge>
-                    ) : null}
-                    {row.isRemoved ? (
-                      <Badge variant="outline" className="text-[10px] font-normal">
-                        Вышел из партии
-                      </Badge>
-                    ) : null}
-                  </div>
-                </div>
-                {player && !row.isRemoved && !isSolo ? (
-                  <RemovePlayerButton player={player} />
-                ) : null}
-              </div>
-              <div className="shrink-0 text-right">
-                <p className="text-2xl font-bold leading-none">{row.primary}</p>
-                {row.secondary ? (
-                  <p className="text-xs text-muted-foreground">{row.secondary}</p>
-                ) : null}
-              </div>
-            </div>
-
-            {row.cricketDetails ? (
-              <div className="mt-3 grid grid-cols-4 gap-2 text-xs">
-                {Object.entries(row.cricketDetails).map(([label, detail]) => {
-                  const statusLabel = getCricketStatusLabel(detail.status)
-
-                  return (
-                    <div
-                      key={label}
-                      className={cn(
-                        'rounded border px-2 py-1.5 text-center',
-                        getCricketCellClass(detail.status),
-                      )}
-                    >
-                      <p className="font-semibold">{label}</p>
-                      <p className="text-muted-foreground">
-                        {detail.marks}/3 · {detail.points}
-                      </p>
-                      {statusLabel ? (
+            <div
+              key={row.playerId}
+              className={cn(
+                'rounded-xl border border-border/70 p-3',
+                row.isCurrent &&
+                  !row.isRemoved &&
+                  'border-hub-green bg-hub-green/10 ring-1 ring-hub-green/40',
+                row.isRemoved && 'border-dashed bg-muted/20 opacity-70',
+              )}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex min-w-0 flex-1 items-start gap-1">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={cn(
+                          'font-medium',
+                          row.isRemoved &&
+                            'text-muted-foreground line-through',
+                        )}
+                      >
+                        {row.playerName}
+                      </span>
+                      {row.isCurrent &&
+                      !row.isRemoved &&
+                      session.status === 'active' ? (
+                        <Badge className="text-[10px] font-normal">
+                          Бросает · {Math.min(throwNumber, maxThrows)}-й
+                        </Badge>
+                      ) : null}
+                      {row.isRemoved ? (
                         <Badge
                           variant="outline"
-                          className="mt-1 px-1.5 py-0 text-[10px] font-normal"
+                          className="text-[10px] font-normal"
                         >
-                          {statusLabel}
+                          Вышел из партии
                         </Badge>
                       ) : null}
                     </div>
-                  )
-                })}
-              </div>
-            ) : null}
-
-            {!row.cricketDetails && row.details ? (
-              <div className="mt-3 grid grid-cols-4 gap-2 text-xs">
-                {Object.entries(row.details).map(([label, value]) => (
-                  <div key={label} className="rounded border px-2 py-1 text-center">
-                    <p className="font-semibold">{label}</p>
-                    <p className="text-muted-foreground">{String(value)}</p>
                   </div>
-                ))}
+                  {player && !row.isRemoved && !isSolo ? (
+                    <RemovePlayerButton player={player} />
+                  ) : null}
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-2xl font-bold leading-none">{row.primary}</p>
+                  {row.secondary ? (
+                    <p className="text-xs text-muted-foreground">
+                      {row.secondary}
+                    </p>
+                  ) : null}
+                </div>
               </div>
-            ) : null}
-          </div>
+
+              {row.details ? (
+                <div className="mt-3 grid grid-cols-4 gap-2 text-xs">
+                  {Object.entries(row.details).map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="rounded border px-2 py-1 text-center"
+                    >
+                      <p className="font-semibold">{label}</p>
+                      <p className="text-muted-foreground">{String(value)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           )
         })}
         {!isSolo ? <AddPlayerForm /> : null}
